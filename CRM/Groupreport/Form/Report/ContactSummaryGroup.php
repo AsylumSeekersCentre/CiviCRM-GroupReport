@@ -232,6 +232,11 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
       $this->_from .= "
             LEFT JOIN civicrm_group_contact {$this->_aliases['civicrm_group_contact']}
                    ON {$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_group_contact']}.contact_id";
+                   /*
+      $this->_from .= "
+            LEFT JOIN civicrm_group_contact_cache civicrm_group_contact_cache
+                   ON {$this->_aliases['civicrm_contact']}.id = civicrm_group_contact_cache.contact_id";
+                   */
     }
 
     if ($this->isTableSelected('civicrm_country')) {
@@ -267,6 +272,37 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
     $this->_groupBy = CRM_Contact_BAO_Query::getGroupByFromSelectColumns($this->_selectClauses, $groupBy);
   }
 
+  public function getGroupTitle($groupId) {
+//    CRM_Core_Session::setStatus('Getting groupId  '.(json_encode($groupId)), 'Success', 'no-popup');
+/*
+*/
+    $result = civicrm_api3('Group', 'get', array(
+      'sequential' => 1,
+      'id' => $groupId,
+    ));
+//    $result = civicrm_api3_group_get(['group_id' => $groupId]);
+//    CRM_Core_Session::setStatus('title = '.(json_encode($result)), 'Success', 'no-popup');
+    return $result['values'][0]['title'];
+  }
+
+  public function getGroupTitles($groupIdsString) {
+    $groupIds = explode(',', $groupIdsString);
+
+    $groupTitles = array();
+    foreach ($groupIds as $groupId) {
+        $groupTitles[] = $this->getGroupTitle($groupId);
+    };
+    return $groupTitles;
+  }
+
+  public function alterDisplayGroups(&$row) {
+//    CRM_Core_Session::setStatus('row = '.(json_encode($row)), 'Success', 'no-popup');
+    $groupTitles = $this->getGroupTitles($row['civicrm_group_contact_group_id']);
+//    CRM_Core_Session::setStatus('groupTitles = '.(json_encode($groupTitles)), 'Success', 'no-popup');
+    $row['civicrm_group_contact_group_id'] = $groupTitles;
+//    CRM_Core_Session::setStatus('groupTitles = '.(json_encode($row['civicrm_group_contact_group_id'])), 'Success', 'no-popup');
+    return TRUE;
+  }
 
 
   /**
@@ -319,6 +355,11 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
         if ($birthDate) {
           $rows[$rowNum]['civicrm_contact_birth_date'] = CRM_Utils_Date::customFormat($birthDate, '%Y%m%d');
         }
+        $entryFound = TRUE;
+      }
+
+      if ($this->alterDisplayGroups($row)) {
+        $rows[$rowNum]['civicrm_group_contact_group_id'] = implode(', &nbsp;', $row['civicrm_group_contact_group_id']);
         $entryFound = TRUE;
       }
 
