@@ -40,6 +40,8 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
 
   protected $_groupField = FALSE;
 
+  protected $_smartGroupField = FALSE;
+
   protected $_customGroupExtends = array(
     'Contact',
     'Individual',
@@ -123,12 +125,30 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
           ),
         ),
       ),
+      'civicrm_group_contact_cache' => array(
+        'bao' => 'CRM_Contact_BAO_GroupContactCache',
+        'fields' => array(
+          'group_id' => array(
+            'title' => ts('SmartGroup'),
+    // FIXME this should use the group_contact_cache name found in _aliases
+    // However, it doesn't work at this point because it hasn't been set yet.
+            'dbAlias' => 'GROUP_CONCAT(civicrm_group_contact_cache.group_id SEPARATOR ",")',
+            'no_repeat' => TRUE,
+          ),
+        ),
+        'grouping' => 'contact-fields',
+        'order_bys' => array(
+          'group_id' => array(
+            'title' => ts('SmartGroup'),
+          ),
+        ),
+      ),
       'civicrm_group_contact' => array(
         'dao' => 'CRM_Contact_DAO_Group',
         'fields' => array(
           'group_id' => array(
             'title' => ts('Group'),
-            'dbAlias' => 'GROUP_CONCAT(group_id SEPARATOR ",")',
+            'dbAlias' => 'GROUP_CONCAT(group_contact_civireport.group_id SEPARATOR ",")',
             'no_repeat' => TRUE,
           ),
         ),
@@ -177,6 +197,9 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
             }
             elseif ($tableName == 'civicrm_group_contact') {
               $this->_groupField = TRUE;
+            }
+            elseif ($tableName == 'civicrm_group_contact_cache') {
+              $this->_smartGroupField = TRUE;
             }
             elseif ($tableName == 'civicrm_country') {
               $this->_countryField = TRUE;
@@ -232,6 +255,21 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
       $this->_from .= "
             LEFT JOIN civicrm_group_contact {$this->_aliases['civicrm_group_contact']}
                    ON {$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_group_contact']}.contact_id";
+    }
+    /*
+    */
+
+    if ($this->_smartGroupField) {
+      // FIXME this should use the group_contact_cache name found in _aliases
+      // However, it doesn't work.
+      $this->_from .= "
+            LEFT JOIN civicrm_group_contact_cache
+                   ON {$this->_aliases['civicrm_contact']}.id = civicrm_group_contact_cache.contact_id";
+    /*
+      $this->_from .= "
+            LEFT JOIN civicrm_group_contact_cache {$this->_aliases['civicrm_group_contact']}
+                   ON {$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_group_contact_cache']}.contact_id";
+    */
                    /*
       $this->_from .= "
             LEFT JOIN civicrm_group_contact_cache civicrm_group_contact_cache
@@ -296,11 +334,13 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
   }
 
   public function alterDisplayGroups(&$row) {
-//    CRM_Core_Session::setStatus('row = '.(json_encode($row)), 'Success', 'no-popup');
     $groupTitles = $this->getGroupTitles($row['civicrm_group_contact_group_id']);
-//    CRM_Core_Session::setStatus('groupTitles = '.(json_encode($groupTitles)), 'Success', 'no-popup');
     $row['civicrm_group_contact_group_id'] = $groupTitles;
-//    CRM_Core_Session::setStatus('groupTitles = '.(json_encode($row['civicrm_group_contact_group_id'])), 'Success', 'no-popup');
+
+//    CRM_Core_Session::setStatus('smartGroups = '.(json_encode($row['civicrm_group_contact_cache_group_id'])), 'Success', 'no-popup');
+    $groupTitles = $this->getGroupTitles($row['civicrm_group_contact_cache_group_id']);
+//    CRM_Core_Session::setStatus('groupTitles= '.(json_encode($groupTitles)), 'Success', 'no-popup');
+    $row['civicrm_group_contact_cache_group_id'] = $groupTitles;
     return TRUE;
   }
 
@@ -360,6 +400,7 @@ class CRM_Groupreport_Form_Report_ContactSummaryGroup extends CRM_Report_Form {
 
       if ($this->alterDisplayGroups($row)) {
         $rows[$rowNum]['civicrm_group_contact_group_id'] = implode(', &nbsp;', $row['civicrm_group_contact_group_id']);
+        $rows[$rowNum]['civicrm_group_contact_cache_group_id'] = implode(', &nbsp;', $row['civicrm_group_contact_cache_group_id']);
         $entryFound = TRUE;
       }
 
